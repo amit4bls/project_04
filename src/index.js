@@ -6,6 +6,10 @@ const app = express();
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+const multer= require("multer");
+const { AppConfig } = require('aws-sdk');
+
+app.use( multer().any())
 
 
 mongoose.connect("mongodb+srv://sudhanshu48:123abc@functionup.veeix.mongodb.net/group34Database", {

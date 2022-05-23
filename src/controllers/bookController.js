@@ -1,12 +1,73 @@
 const bookModel = require("../models/bookModel")
 const userModel = require("../models/userModel")
 const reviewModel = require("../models/reviewModel")
+const aws= require("aws-sdk")
+const multer= require("multer");
+const { AppConfig } = require('aws-sdk');
+
+//Create a book document from request body. Get userId in request body only.
+//Make sure the userId is a valid userId by checking the user exist in the users collection.
 
 
 const createBook = async function (req, res) {
     try {
         let data = req.body
-
+        const { title, excerpt, userId, ISBN, category, subcategory, releasedAt} = data;
+        aws.config.update({
+            accessKeyId: "AKIAY3L35MCRUJ6WPO6J",
+            secretAccessKey: "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",
+            region: "ap-south-1"
+        })
+        let uploadFile= async ( file) =>{
+            return new Promise( function(resolve, reject) {
+             // this function will upload file to aws and return the link
+             let s3= new aws.S3({apiVersion: '2006-03-01'}); // we will be using the s3 service of aws
+         
+             var uploadParams= {
+                 ACL: "public-read",
+                 Bucket: "classroom-training-bucket",  //HERE
+                 Key: "abc/" + file.originalname, //HERE 
+                 Body: file.buffer
+             }
+         
+         
+             s3.upload( uploadParams, function (err, data ){
+                 if(err) {
+                     return reject({"error": err})
+                 }
+                 console.log(data)
+                 console.log("file uploaded succesfully")
+                 return resolve(data.Location)
+             })
+         
+             // let data= await s3.upload( uploadParams)
+             // if( data) return data.Location
+             // else return "there is an error"
+         
+            })
+         }
+        
+        try{
+            let files= req.files
+            if(files && files.length>0){
+                //upload to s3 and get the uploaded link
+                // res.send the link back to frontend/postman
+                let uploadedFileURL= await uploadFile( files[0] )
+                console.log(uploadedFileURL)
+                let bookCover =await bookModel.findOne({data: uploadedFileURL})
+              // if(bookCover){
+               //return res.status(400).send({ status: false, message: "ISBN is already present" })
+        //}
+               // res.status(201).send({msg: "file uploaded succesfully", data: uploadedFileURL})
+            }
+            else{
+                res.status(400).send({ msg: "No file found" })
+            }
+            
+        }
+        catch(err){
+            res.status(500).send({msg: err})
+        }
         //Check if Body is empty or not
         if (Object.keys(data).length === 0) {
             return res.status(400).send({ status: false, message: "data must be required" })
@@ -72,10 +133,19 @@ const createBook = async function (req, res) {
             return res.status(400).send({ status: false, message: "ISBN is already present" })
         }
 
-        // creating the documents of book collection
-        let books = await bookModel.create(data)
+        let files= req.files
+        if(!files ){
+            return res.status(400).send({ msg: "No file found" })
+        }   
+        let uploadedFileURL= await uploadFile( files[0] )
+        let bookCover= uploadedFileURL
 
-        res.status(201).send({ status: true, message: "success", data: books })
+        // creating the documents of book collection
+        const newBook = await bookModel.create({
+            title, bookCover, excerpt, userId, ISBN, category, subcategory, releasedAt
+        });
+
+        return res.status(201).send({ status: true, message: `Books created successfully`, data: newBook });
 
 
     }
@@ -85,6 +155,17 @@ const createBook = async function (req, res) {
 }
 
 //**********creating a function to fetch the Book documents by giving (some data) in query params*********//
+
+/* Returns all books in the collection that aren't deleted. Return only book _id, title, excerpt, userId, category, releasedAt, reviews field. Response example here
+Return the HTTP status 200 if any documents are found. The response structure should be like this
+If no documents are found then return an HTTP status 404 with a response like this
+Filter books list by applying filters. Query param can have any combination of below filters.
+By userId
+By category
+By subcategory example of a query url: books?filtername=filtervalue&f2=fv2
+Return all books sorted by book name in Alphabatical order */
+
+
 const getBooks = async function (req, res) {
     try {
         let data = req.query
@@ -106,6 +187,8 @@ const getBooks = async function (req, res) {
 
 
 //****************creating function to get documents of a book By giving bookid in params********************//
+
+//Returns a book with complete details including reviews. Reviews array would be in the form of Array. Response example here
 
 const getBookSByBookId = async function (req, res) {
     try {
@@ -136,6 +219,17 @@ const getBookSByBookId = async function (req, res) {
 }
 
 //********************************Update function************************************************//
+
+/*update a book by changing its
+title
+excerpt
+release date
+ISBN
+Make sure the unique constraints are not violated when making the update */
+/* Check if the bookId exists (must have isDeleted false and is present in collection). If it doesn't, return an HTTP status 404 with a response body like this
+Return an HTTP status 200 if updated successfully with a body like this
+Also make sure in the response you return the updated book document.
+ */
 const updateBook = async function (req, res) {
     try {
         let bookId = req.params.bookId
@@ -181,6 +275,9 @@ const updateBook = async function (req, res) {
 
 //**************************Function to delete the documents of book collection***********************//
 
+/* Check if the bookId exists and is not deleted. If it does, mark it deleted and return an HTTP status 200 with a response body with status and message.
+If the book document doesn't exist then return an HTTP status of 404 with a body like this */
+
 const deleteData = async function (req,res){
     try{
     let id = req.params.bookId
@@ -195,7 +292,8 @@ const deleteData = async function (req,res){
     }
     //secussfully deleted book data
     else {
-        let FinalResult = await bookModel.findByIdAndUpdate({_id:id}, { isDeleted: true, deletedAt: new Date() }, { new: true })
+        let FinalResult = await bookModel.findByIdAndUpdate({_id:id}, 
+            { isDeleted: true, deletedAt: new Date() }, { new: true })
         return res.status(201).send({ Status: true, message: " Successfully deleted the blog ",data: FinalResult })
     }
 }

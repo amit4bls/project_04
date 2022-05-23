@@ -12,6 +12,7 @@ const authentication = async function(req,res,next){
     }
 try{
     let decodedToken = jwt.verify(token,"group34")
+   
     
 }
 catch(err){

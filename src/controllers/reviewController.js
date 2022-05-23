@@ -1,6 +1,12 @@
 const bookModel = require("../models/bookModel")
 const reviewModel = require("../models/reviewModel")
 
+/* Add a review for the book in reviews collection.
+Check if the bookId exists and is not deleted before adding the review. Send an error response with appropirate status code like this if the book does not exist
+Get review details like review, rating, reviewer's name in request body.
+Update the related book document by increasing its review count
+Return the updated book document with reviews data on successful operation. The response body should be in the form of JSON object like this */
+
 //function to create review document
 const createReview = async function (req, res) {
     try {
@@ -70,6 +76,10 @@ const createReview = async function (req, res) {
 
 
 //*******************creating a function to update the document of review collection *****************************//
+/* Update the review - review, rating, reviewer's name.
+Check if the bookId exists and is not deleted before updating the review. Check if the review exist before updating the review. Send an error response with appropirate status code like this if the book does not exist
+Get review details like review, rating, reviewer's name in request body.
+Return the updated book document with reviews data on successful operation. The response body should be in the form of JSON object like this */
 
 const updateReview = async function (req, res) {
     try{
@@ -89,6 +99,10 @@ const updateReview = async function (req, res) {
     }
 
     let data = req.body
+        let isValidRating = /^[1-5]{1}$/
+        if (!(isValidRating.test(data.rating))) {
+            return res.status(400).send({ status: false, message: "rating should be from  integer 1 to 5" })
+        }
 
     //checking If any data is given inside body or not
     if (Object.keys(data).length == 0) {
@@ -110,7 +124,7 @@ const updateReview = async function (req, res) {
     let findBook = await bookModel.findOne({ _id: bookId })
 
     let newObj = JSON.parse(JSON.stringify(findBook))
-    convert.reviewsData = findReview
+    newObj.reviewsData = findReview
     res.status(200).send({ status: true, message: "review update successfully", data: newObj })
 }
 catch(err){
@@ -120,6 +134,10 @@ catch(err){
 }
 
 //***********************************Function to Delete the document of the review collection***************** */
+/* Check if the review exist with the reviewId. Check if the book exist with the bookId. Send an error response with appropirate status code like this if the book or book review does not exist
+Delete the related reivew.
+Update the books document - decrease review count by one */
+
 const deleteReview = async function(req,res){
 try{
     let bookId = req.params.bookId
@@ -136,8 +154,11 @@ try{
     if (!checkReviewId) {
         return res.status(400).send({ status: false, message: "Review document not found or already deleted" })
     }
+    //Delete the related reivew.
 
     let deleteRev = await reviewModel.findOneAndUpdate({_id:reviewId},{$set:{isDeleted:true}},{new:true})
+
+    //Update the books document - decrease review count by one
 
      await bookModel.findOneAndUpdate({_id:bookId},{$inc:{reviews:-1}})
 

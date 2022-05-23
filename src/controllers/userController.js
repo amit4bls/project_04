@@ -1,8 +1,12 @@
 const userModel = require("../models/userModel")
 const jwt = require("jsonwebtoken")
 
-//Creating User Function
-
+/* //Creating User Function
+//Create a user - atleast 5 users
+//Create a user document from request body.
+//Return HTTP status 201 on a succesful user creation. Also return the user document. The response should be a JSON object like this
+//Return HTTP status 400 if no params or invalid params received in request body. The response should be a JSON object like this
+ */
 const createUser = async function (req, res) {
     try {
         let data = req.body
@@ -92,6 +96,9 @@ const createUser = async function (req, res) {
 }
 
 //**********************************************Login Function ************************************************
+/* Allow an user to login with their email and password.
+On a successful login attempt return a JWT token contatining the userId, exp, iat. The response should be a JSON object like this
+If the credentials are incorrect return a suitable error message with a valid HTTP status code. The response should be a JSON object like this */
 
 const login = async function (req, res) {
     try {
